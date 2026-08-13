@@ -1,0 +1,93 @@
+
+# 🌐 Especificação Complementar: Padrão Nacional da NFS-e e Ambiente de Sandbox
+
+Este documento detalha os requisitos técnicos para a implementação do módulo do **Emissor Público Nacional da NFS-e** (Receita Federal) e a arquitetura necessária para construir o **Ambiente de Testes (Sandbox)** da sua API.
+
+---
+
+## ⚡ 1. Implementação do Padrão Nacional da NFS-e (Receita Federal)
+
+O Ambiente de Dados Nacional (ADN) da NFS-e foi criado para unificar a emissão no Brasil. Diferente das prefeituras antigas que usam arquivos XML e protocolos SOAP complexos, o Padrão Nacional utiliza uma **API REST moderna baseada em JSON**, o que simplifica drasticamente o seu código Java.
+
+### A. Fluxo de Integração com o Portal Nacional
+
+
+
+
+### B. Principais Conceitos Técnicos do Padrão Nacional
+*   **DPS (Declaração de Prestação de Serviços):** É o documento digital que substitui o antigo RPS municipal. Seu sistema enviará um payload JSON contendo a DPS estruturada para a API do governo.
+*   **Padrão de URL Único:** Não existem milhares de links. O governo federal centraliza tudo em endpoints únicos de Homologação e Produção para o país inteiro.
+*   **Assinatura Digital Opcional via API:** Em muitas rotas da API REST do ecossistema nacional, a autenticação mútua (mTLS) feita pelo canal HTTPS com o Certificado Digital A1 já valida a identidade do emissor, tornando a assinatura tag a tag do JSON opcional em alguns cenários de lote.
+
+### C. Estrutura do Endpoint REST Nacional (Exemplo de Requisição Java)
+Para o Padrão Nacional, você utilizará o `HttpClient` do Java para disparar payloads JSON para os endpoints federais, utilizando estruturas de dados baseadas nas seguintes classes de modelo:
+
+```java
+// Modelo simplificado para conversão em JSON usando Jackson/Gson
+public class DpsNacionalDto {
+    private String verSchema; // Versão do layout do governo
+    private InfDps infDPS;
+
+    public static class InfDps {
+        private String dhEmi; // Data e hora de emissão
+        private byte tpAmb;   // 1 - Produção, 2 - Homologação
+        private Prestador prestador;
+        private Tomador tomador;
+        private Servico servico;
+        private Valores valores;
+    }
+    // Getters e Setters...
+}
+```
+
+---
+
+## 🧪 2. Arquitetura do Ambiente de Testes (Sandbox) da Sua API
+
+Para que os desenvolvedores que vão contratar a **sua API** consigam testar o sistema deles sem gastar dinheiro e sem emitir notas reais, você precisa construir um ambiente de **Sandbox (Simulação)** robusto.
+
+### A. Estratégia de Isolamento de Ambientes
+Você deve rodar duas instâncias da sua aplicação Java (geralmente gerenciadas via profiles do Spring Boot, como `spring.profiles.active=dev` ou `prod`):
+
+1.  **Sua API em Modo Produção:** Conecta-se diretamente aos servidores de produção das prefeituras e do governo federal.
+2.  **Sua API em Modo Homologação:** Redireciona as requisições para os ambientes de teste das prefeituras/governo.
+
+### B. O Motor de Mock Interno (Para cidades sem ambiente de teste)
+Muitas prefeituras pequenas **não possuem** servidor de homologação estável ou ativo. Se o seu cliente tentar testar uma nota para uma dessas cidades, sua API vai travar. Para resolver isso, crie um **Simulador Interno** na sua Engine Java:
+
+```java
+@Component
+public class SimuladorNfseService {
+
+    public RespostaNfseDto simularEmissao(RequisicaoNfseDto dto) {
+        // Se o cliente enviar o campo "ambiente=sandbox", sua API não disca para a prefeitura.
+        // Ela gera um XML/JSON fictício localmente e simula o sucesso.
+        RespostaNfseDto mockResposta = new RespostaNfseDto();
+        mockResposta.setStatus("AUTORIZADA");
+        mockResposta.setNumeroNota(String.valueOf(new Random().nextInt(999999)));
+        mockResposta.setChaveAcesso("3526" + UUID.randomUUID().toString().replaceAll("-", "").substring(0, 40));
+        mockResposta.setMensagem("Nota simulada com sucesso no ambiente de Sandbox da plataforma.");
+        return mockResposta;
+    }
+}
+```
+
+### C. Massa de Dados Obrigatória para Testes do seu Cliente
+No seu ambiente de Sandbox, instrua os seus usuários a utilizarem dados padrão para testar cenários específicos:
+*   **CNPJ `00.000.000/0001-91`:** Simular nota autorizada com sucesso instantâneo.
+*   **CNPJ `11.111.111/0001-11`:** Simular erro de rejeição por falta de saldo de ISS.
+*   **Valor do Serviço = R$ 999,99:** Simular cenário de timeout (servidor da prefeitura fora do ar) para o cliente testar se o Webhook dele aguenta o tranco.
+
+---
+
+## 🚀 3. Recomendações e Próximos Passos Operacionais
+
+Para consolidar esses dois arquivos de especificação e iniciar o desenvolvimento do código Java, precisamos tomar as decisões de engenharia iniciais.
+
+### **Questões para Definirmos Agora:**
+
+Escolha por qual destes pontos práticos começaremos a codificar:
+
+1. **Estruturação do Payload JSON Único:** Quer definir quais campos o **seu cliente** vai enviar para a sua API (dados do tomador, valor, serviço) para que você consiga converter tanto para o Padrão Nacional quanto para as prefeituras antigas?
+2. **Setup do Projeto Spring Boot:** Quer o passo a passo de dependências (`pom.xml`) com Jackson, Spring Webhook, e bibliotecas de criptografia necessárias para iniciar a aplicação?
+3. **Mecanismo de Roteamento de Sandbox:** Deseja ver como configurar os Profiles do Spring para separar as URLs de produção das URLs de teste de forma automática?

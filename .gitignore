@@ -1,0 +1,19 @@
+# build
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+nbproject/private/
+
+# certificados — NUNCA versionar cert real
+*.pfx
+*.p12
+*.jks
+# exceção: certificado de teste autoassinado (Fase 4)
+!nfse-nacional/src/test/resources/certs/teste.p12
+
+# SO
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,173 @@
+### Implementação do Pattern Strategy + Factory para Múltiplos Municípios
+Evite estruturas massivas de `if/else`. Isole os comportamentos municipais em classes separadas.
+
+```java
+package br.com.suaapi.nfse.strategy;
+
+public interface EmissorNfseStrategy {
+    boolean suporta(String codigoIbge);
+    String gerarXml(RequisicaoNfseDto dto);
+    RespostaNfseDto transmitir(String xmlAssinado, CertificadoDigital certificado);
+}
+```
+
+```java
+package br.com.suaapi.nfse.factory;
+
+import br.com.suaapi.nfse.strategy.EmissorNfseStrategy;
+import org.springframework.stereotype.Component;
+import java.util.List;
+
+@Component
+public class EmissorNfseFactory {
+    
+    private final List<EmissorNfseStrategy> estrategias;
+
+    public EmissorNfseFactory(List<EmissorNfseStrategy> estrategias) {
+        this.estrategias = estrategias;
+    }
+
+    public EmissorNfseStrategy obterEstrategia(String codigoIbge) {
+        return estrategias.stream()
+            .filter(e -> e.suporta(codigoIbge))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Município com código IBGE " + codigoIbge + " ainda não é homologado na plataforma."));
+    }
+}
+```
+
+---
+
+## 🛠️ 3. Requisitos Técnicos e Implementação Core em Java
+
+### A. Autenticação Mutual TLS (mTLS) com Certificado A1
+As prefeituras exigem certificados digitais ICP-Brasil (**Padrão A1** em formato `.pfx` ou `.p12`) para estabelecer a conexão HTTPS segura. Você deve carregar o certificado do cliente dinamicamente em memória a cada requisição HTTP externa usando o `HttpClient` nativo do Java:
+
+```java
+import javax.net.ssl.SSLContext;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.http.HttpClient;
+import java.security.KeyStore;
+import org.apache.hc.core5.ssl.SSLContexts; // Dependência recomendada: Apache HttpCore
+
+public HttpClient configurarHttpClientComCertificado(String caminhoPfx, String senha) throws Exception {
+    KeyStore keyStore = KeyStore.getInstance("PKCS12");
+    try (InputStream is = new FileInputStream(caminhoPfx)) {
+        keyStore.load(is, senha.toCharArray());
+    }
+
+    SSLContext sslContext = SSLContexts.custom()
+        .loadKeyMaterial(keyStore, senha.toCharArray())
+        .build();
+
+    return HttpClient.newBuilder()
+        .sslContext(sslContext)
+        .build();
+}
+```
+
+### B. Assinatura Digital de XML (XMLDSig)
+Para assinar as tags `<RPS>` ou `<LoteRps>` exigidas pelas prefeituras, utilize a API de criptografia nativa do Java (`javax.xml.crypto.dsig`). O processo envolve envelopar a chave privada do certificado e aplicar o hash RSA-SHA1 ou RSA-SHA256 conforme o manual da cidade.
+
+### C. Validação de Esquema Local (XSD)
+Armazene os esquemas `.xsd` de todas as cidades homologadas em `src/main/resources/schemas/`. Valide o XML gerado localmente na sua API antes do envio. Isso poupa banda, processamento do servidor e fornece mensagens de erro amigáveis instantaneamente para o seu cliente:
+
+```java
+import javax.xml.XMLConstants;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
+import javax.xml.validation.Validator;
+import java.io.File;
+import org.w3c.dom.Document;
+
+public void validarXmlLocal(Document xmlDocument, String caminhoXsd) throws Exception {
+    SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+    Schema schema = factory.newSchema(new File(caminhoXsd));
+    Validator validator = schema.newValidator();
+    validator.validate(new DOMSource(xmlDocument));
+}
+```
+
+---
+
+## 🔒 4. Requisitos de Infraestrutura, Segurança e Resiliência
+
+### Criptografia de Certificados em Repouso (At Rest)
+Sua API será guardiã de chaves privadas comerciais (arquivos `.pfx`) de seus clientes. **Nunca salve esses arquivos de forma exposta.**
+* Converta o arquivo do certificado em um array de bytes (`byte[]`).
+* Criptografe os bytes utilizando o algoritmo **AES-256-GCM** antes de persistir no banco de dados (ex: PostgreSQL/MySQL).
+* Armazene as chaves mestras de criptografia em um gerenciador seguro como **HashiCorp Vault**, **AWS Secrets Manager** ou **Azure Key Vault**.
+
+### Arquitetura Assíncrona (Mensageria e Webhooks)
+O processamento síncrono é proibido neste tipo de sistema devido à lentidão das prefeituras.
+1. O cliente consome seu endpoint REST: `POST /v1/nfse`.
+2. A API valida a estrutura básica do JSON, salva a entidade no banco com status `PROCESSANDO`, publica a mensagem em uma fila do **RabbitMQ** ou **Apache Kafka** e retorna `HTTP 202 Accepted` com um ID de protocolo.
+3. O Worker Java processa a fila de forma assíncrona, assina, transmite para a prefeitura e aguarda o retorno (*polling* ou resposta direta).
+4. Assim que a nota mudar de status (`AUTORIZADA` ou `REJEITADA`), o Worker dispara um **Webhook (HTTP POST)** de volta para o servidor do seu cliente com o XML e o link do PDF (DANFSE).
+
+### Política de Resiliência (Circuit Breaker e Backoff Exponencial)
+Se o servidor de uma prefeitura estiver instável, o Worker não deve descartar a nota imediatamente. Implemente políticas de **Backoff Exponencial** (ex: tentar novamente em 30s, depois 2min, 5min, 15min, 1h) usando bibliotecas como o **Spring Retry** ou **Resilience4j** antes de marcar a nota definitivamente como falha de comunicação.
+
+---
+
+## 🧪 5. Plano de Testes e Estratégia de Homologação
+
+Testar software fiscal exige uma estratégia dividida entre simulações locais e conexões reais com ambientes governamentais:
+
+* **Ambientes de Homologação Municipais:** Praticamente todas as prefeituras disponibilizam URLs de teste (ambiente de homologação). No entanto, algumas exigem que o CNPJ do prestador seja explicitamente liberado para testes via chamado no portal da prefeitura.
+* **Testes de Integração com WireMock:** Crie dublês de testes (motes/mocks) usando a ferramenta **WireMock** no seu ambiente Java. Simule cenários onde o Web Service da prefeitura retorna erros SOAP (`Internal Server Error 500`), respostas lentas (testes de timeout) e retornos XML corrompidos para garantir que sua API trate essas exceções sem derrubar o sistema.
+* **Massa de Dados de Teste:** Mantenha um repositório interno com exemplos de XMLs autorizados reais de diferentes padrões (ABRASF 1.0, ABRASF 2.03, DSF, Ginfes). Eles servirão de gabarito para seus testes unitários de geração de layout.
+
+---
+
+## 📚 6. Fontes de Pesquisa, Especificações e Códigos de Referência
+
+Para acelerar o desenvolvimento e não reinventar a roda matemática de criptografia e assinaturas, utilize os seguintes guias e repositórios Open Source:
+
+### Documentação Governamental Oficial
+* **[Portal Nacional da NFS-e - Receita Federal](https://nfse.gov.br):** O ponto de partida moderno mais importante. Contém manuais de contribuintes, especificações de APIs REST do ecossistema federal e esquemas de dados da NFS-e Nacional.
+* **[Manuais de Integração ABRASF](https://abrasf.org.br):** Acesse a seção de documentos técnicos da Associação Brasileira das Secretarias de Finanças para baixar as especificações conceituais das versões 1.00, 2.01, 2.02, 2.03 e 2.04.
+
+### Repositórios de Código Aberto (Estudo Prático em Java)
+1. **[Samuel-Oliveira/Java_NFe](https://github.com):** A biblioteca open source mais ativa do ecossistema fiscal Java brasileiro. Indispensável para estudar a lógica estrutural de injeção de certificados no `KeyStore` e gerenciamento de conexões seguras com o governo.
+2. **[wmixvideo/nfe](https://github.com):** Excelente arquitetura orientada a objetos para tratamento de documentos fiscais eletrônicos. Analise as classes de configuração e geradores de instâncias XML.
+3. **[pablopdomingos/nfse](https://github.com):** Exemplo simplificado em Java focado em NFS-e municipal (Belo Horizonte), ideal para entender como a assinatura de tags específicas de serviços (RPS) se comporta em comparação a produtos.
+
+---
+
+## 🚀 7. Roteiro Prático de Ajustes e Próximos Passos
+
+Para avançarmos com segurança na construção deste ecossistema, precisamos afunilar os requisitos operacionais da primeira versão (*MVP - Minimum Viable Product*).
+
+
+# 📑 Especificação Técnica Completa: Plataforma API Unificada de NFS-e em Java
+
+Este documento consolida o planejamento estratégico, a arquitetura de software, as regras fiscais, o plano de testes e o roteiro de desenvolvimento para a criação de uma API REST própria para emissão de Nota Fiscal de Serviços Eletrônica (**NFS-e**) multi-municípios.
+
+---
+
+## 🗺️ 1. O Cenário da NFS-e no Brasil e o Desafio da Descentralização
+
+Diferente da NF-e (produtos), que possui autorização centralizada pelas Secretarias de Fazenda (SEFAZ) estaduais, a NFS-e é de competência municipal. O Brasil possui mais de 5.570 municípios, o que gera um cenário de extrema fragmentação técnica:
+
+### O Mito da Documentação Única
+Cada prefeitura (ou a empresa privada de tecnologia contratada por ela) fornece o seu próprio ecossistema de integração composto por:
+1. **Manual do Desenvolvedor (PDF):** Descreve as regras de negócio locais (tamanho de campos, retenções de ISS na fonte, tratamento de erros).
+2. **Arquivos XSD (XML Schema Definition):** Esquemas de validação estrutural do XML.
+3. **Arquivos WSDL (Web Services Description Language):** Arquivos que descrevem os métodos SOAP disponíveis (ex: `EnviarLoteRps`, `CancelarNfse`).
+
+### A Realidade Prática do Mercado (O "Caos" Fiscal)
+* **Dialetos do Padrão ABRASF:** A maioria das cidades afirma seguir o padrão da Associação Brasileira das Secretarias de Finanças (v1.0 ou v2.0x). No entanto, elas criam customizações locais. Uma tag de endereço obrigatória em uma cidade pode quebrar o validador de outra cidade que usa a "mesma" versão ABRASF.
+* **Sistemas Proprietários Isolados:** Grandes capitais como São Paulo (SP), Rio de Janeiro (RJ) e Curitiba (PR) rodam sistemas legados totalmente exclusivos e fora de padrões de mercado.
+* **Instabilidade Crônica:** Servidores municipais sofrem quedas frequentes e lentidão extrema em horários comerciais. Mudanças em URLs e layouts ocorrem frequentemente sem aviso prévio.
+
+---
+
+## 🏗️ 2. Arquitetura de Software e Padrões de Projeto (Java)
+
+Para isolar o seu cliente final dessa complexidade, sua API deve funcionar como uma **Camada de Abstração Limpa**. O cliente envia um JSON padronizado e seu sistema Java traduz esse JSON para as exigências específicas do município alvo.
+
+### Fluxo Arquitetural da Requisição
+
