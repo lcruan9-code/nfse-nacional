@@ -1,13 +1,11 @@
 package br.com.lc.nfse;
 
+import br.com.lc.nfse.api.AbstractPostgresIT;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class NfseNacionalApplicationTests {
+class NfseNacionalApplicationTests extends AbstractPostgresIT {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+    }
 }
