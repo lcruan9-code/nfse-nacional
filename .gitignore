@@ -11,8 +11,9 @@ nbproject/private/
 *.pfx
 *.p12
 *.jks
-# exceção: certificado de teste autoassinado (Fase 4)
+# exceções: certificados de teste autoassinados (não-ICP)
 !nfse-nacional/src/test/resources/certs/teste.p12
+!nfse-nacional/src/main/resources/certs/sandbox.p12
 
 # SO
 Thumbs.db

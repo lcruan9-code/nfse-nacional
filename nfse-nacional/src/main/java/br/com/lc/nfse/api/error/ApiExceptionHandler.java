@@ -1,5 +1,6 @@
 package br.com.lc.nfse.api.error;
 
+import br.com.lc.nfse.api.emissao.ProducaoIndisponivelException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -25,5 +26,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<EnvelopeErro> validacao(IllegalArgumentException e) {
         return ResponseEntity.unprocessableEntity()
                 .body(EnvelopeErro.de("validacao", e.getMessage()));
+    }
+
+    @ExceptionHandler(ProducaoIndisponivelException.class)
+    public ResponseEntity<EnvelopeErro> producaoIndisponivel(ProducaoIndisponivelException e) {
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                .body(EnvelopeErro.de("producao_indisponivel", e.getMessage()));
     }
 }

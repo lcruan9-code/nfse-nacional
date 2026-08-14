@@ -1,6 +1,9 @@
 package br.com.lc.nfse.api;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -25,5 +28,14 @@ public abstract class AbstractPostgresIT {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    /** Banco limpo antes de cada teste — o container é compartilhado por todas as classes. */
+    @BeforeEach
+    void limparBanco() {
+        jdbcTemplate.execute("truncate table emissoes, api_keys, empresas, contas restart identity cascade");
     }
 }

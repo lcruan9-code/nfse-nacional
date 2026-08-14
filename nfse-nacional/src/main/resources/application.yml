@@ -15,3 +15,6 @@ spring:
 nfse:
   admin:
     api-key: ${NFSE_ADMIN_KEY:admin_dev_key}
+  certificado:
+    caminho: ${NFSE_CERT_CAMINHO:classpath:certs/sandbox.p12}
+    senha: ${NFSE_CERT_SENHA:sandbox}
