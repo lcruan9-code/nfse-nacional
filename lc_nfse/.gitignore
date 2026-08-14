@@ -2,3 +2,4 @@ out/
 out-smoke/
 lc_nfse.jar
 .tenant.txt
+lc_nfse.properties

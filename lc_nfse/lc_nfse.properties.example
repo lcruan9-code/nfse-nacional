@@ -1,0 +1,11 @@
+# Copie para lc_nfse.properties e preencha com os teus valores.
+mysql.host=127.0.0.1
+mysql.port=3306
+mysql.db=lc_relatorio
+mysql.user=root
+mysql.pass=SUA_SENHA_MYSQL
+empresa.id=1
+# Nossa API de NFS-e (sandbox)
+api.baseUrl=http://localhost:8080
+api.key=sk_test_SUA_CHAVE_SANDBOX
+api.empresaId=UUID_DA_EMPRESA_NA_API
