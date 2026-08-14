@@ -39,8 +39,9 @@ public class SmokeHeadless {
         }
 
         Path pdf = Paths.get(System.getProperty("java.io.tmpdir"), "lc_nfse_smoke.pdf");
-        new DanfsePdf().gerar(emp, "Cliente Teste LTDA", "12345678000199", "Servico de teste headless",
-                "1234.56", numero, chave, pdf);
+        new DanfsePdf().gerar(emp, "Cliente Teste LTDA", "12345678000199", "010101", "Servico de teste headless",
+                "1234.56", numero, chave, "14/08/2026", "14/08/2026 10:00:00", "1", numero,
+                "NFS-e Simples Nacional", pdf);
         System.out.println("[PDF] gerado=" + Files.exists(pdf) + " tamanho=" + Files.size(pdf) + " (" + pdf + ")");
         System.out.println("SMOKE OK");
     }

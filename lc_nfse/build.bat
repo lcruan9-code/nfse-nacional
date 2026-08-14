@@ -2,7 +2,7 @@
 setlocal
 set "JDK=C:\Program Files\Java\jdk-17"
 set "LIB=C:\LC sistemas - Softhouse - 321\lib"
-set "CP=%LIB%\CampoTexto.jar;%LIB%\CampoValorNumerico.jar;%LIB%\mysql-connector-java-5.1.36-bin.jar;%LIB%\iText-2.1.7.jar"
+set "CP=%LIB%\CampoTexto.jar;%LIB%\CampoValorNumerico.jar;%LIB%\mysql-connector-java-5.1.36-bin.jar;%LIB%\iText-2.1.7.jar;%LIB%\core-2.3.0.jar;%LIB%\javase-2.2.jar"
 
 if exist out rmdir /s /q out
 mkdir out

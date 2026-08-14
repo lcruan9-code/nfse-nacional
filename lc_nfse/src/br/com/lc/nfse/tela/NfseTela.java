@@ -230,11 +230,17 @@ public class NfseTela extends JFrame {
 
     private void imprimir() {
         try {
+            java.time.LocalDateTime agora = java.time.LocalDateTime.now();
+            String comp = agora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            String dh = agora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+            String regime = empresa.regime() == null ? "" : empresa.regime().toUpperCase();
+            String situacao = regime.contains("MEI") || regime.contains("MICROEMPREEND") ? "NFS-e MEI"
+                    : regime.contains("SIMPLES") ? "NFS-e Simples Nacional" : "NFS-e";
+            String valorStr = String.format(Locale.US, "%.2f", valor.getValor());
             Path pdf = Paths.get(System.getProperty("java.io.tmpdir"),
                     "nfse-sandbox-" + (ultNumero == null ? "0" : ultNumero) + ".pdf");
-            new DanfsePdf().gerar(empresa, tomadorNome.getText(), tomadorDoc.getText(),
-                    descricao.getText(), String.format(Locale.US, "%.2f", valor.getValor()),
-                    ultNumero, ultChave, pdf);
+            new DanfsePdf().gerar(empresa, tomadorNome.getText(), tomadorDoc.getText(), codTrib.getText().trim(),
+                    descricao.getText(), valorStr, ultNumero, ultChave, comp, dh, "1", ultNumero, situacao, pdf);
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().open(pdf.toFile());
             }
