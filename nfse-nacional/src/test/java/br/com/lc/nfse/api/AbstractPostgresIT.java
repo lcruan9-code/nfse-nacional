@@ -1,20 +1,29 @@
 package br.com.lc.nfse.api;
 
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Base dos testes de integração: sobe a app em porta aleatória contra um PostgreSQL
- * efêmero do Testcontainers (Flyway roda de verdade). Isola dos bancos locais/dev.
+ * Base dos testes de integração: um único PostgreSQL do Testcontainers compartilhado por
+ * TODAS as classes (padrão singleton — iniciado uma vez no bloco static, nunca parado
+ * explicitamente; o Ryuk do Testcontainers limpa no fim da JVM). O Flyway rode de verdade;
+ * migrations são idempotentes entre contextos.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractPostgresIT {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
+
+    static {
+        POSTGRES.start();
+    }
+
+    @DynamicPropertySource
+    static void datasourceProps(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", POSTGRES::getUsername);
+        registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
 }
