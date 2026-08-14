@@ -12,6 +12,7 @@ import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -19,20 +20,57 @@ import com.lowagie.text.pdf.PdfWriter;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 
-/** Gera o DANFSe v2.0 (réplica do layout oficial) em PDF — ambiente sandbox, sem valor fiscal. */
+/**
+ * Gera o DANFSe v2.0 conforme a NT 008/2026: logo oficial, fontes Arial (títulos/rótulos) +
+ * Microsoft Sans Serif (conteúdo), frase "NFS-e SEM VALIDADE JURÍDICA" (homologação), QR code
+ * (>= 1,52 cm) e sombreamento no valor líquido. Ambiente sandbox — sem valor jurídico.
+ */
 public class DanfsePdf {
 
-    private static final Font F_TITULO = new Font(Font.HELVETICA, 13, Font.BOLD);
-    private static final Font F_SUB = new Font(Font.HELVETICA, 7);
-    private static final Font F_AVISO = new Font(Font.HELVETICA, 8, Font.BOLD, Color.RED);
-    private static final Font F_SECAO = new Font(Font.HELVETICA, 7, Font.BOLD);
-    private static final Font F_LABEL = new Font(Font.HELVETICA, 5, Font.NORMAL, new Color(110, 110, 110));
-    private static final Font F_VAL = new Font(Font.HELVETICA, 7);
     private static final Color CINZA = new Color(224, 224, 224);
     private static final Color BORDA = new Color(150, 150, 150);
+    private static final Color DESTAQUE = new Color(232, 232, 232);
+    private static final String FONTES = "C:/Windows/Fonts/";
+
+    private final Font fTitulo;
+    private final Font fSub;
+    private final Font fSecao;
+    private final Font fLabel;
+    private final Font fVal;
+    private final Font fAviso;
+
+    public DanfsePdf() {
+        Font titulo, sub, secao, label, val, aviso;
+        try {
+            BaseFont arial = BaseFont.createFont(FONTES + "arial.ttf", BaseFont.WINANSI, BaseFont.EMBEDDED);
+            BaseFont arialBd = BaseFont.createFont(FONTES + "arialbd.ttf", BaseFont.WINANSI, BaseFont.EMBEDDED);
+            BaseFont sans = BaseFont.createFont(FONTES + "micross.ttf", BaseFont.WINANSI, BaseFont.EMBEDDED);
+            titulo = new Font(arialBd, 13);
+            sub = new Font(arial, 7);
+            secao = new Font(arialBd, 7);
+            label = new Font(arial, 5, Font.NORMAL, new Color(110, 110, 110));
+            val = new Font(sans, 7);
+            aviso = new Font(arialBd, 10, Font.NORMAL, Color.RED);
+        } catch (Exception e) {
+            titulo = new Font(Font.HELVETICA, 13, Font.BOLD);
+            sub = new Font(Font.HELVETICA, 7);
+            secao = new Font(Font.HELVETICA, 7, Font.BOLD);
+            label = new Font(Font.HELVETICA, 5, Font.NORMAL, new Color(110, 110, 110));
+            val = new Font(Font.HELVETICA, 7);
+            aviso = new Font(Font.HELVETICA, 10, Font.BOLD, Color.RED);
+        }
+        this.fTitulo = titulo;
+        this.fSub = sub;
+        this.fSecao = secao;
+        this.fLabel = label;
+        this.fVal = val;
+        this.fAviso = aviso;
+    }
 
     public Path gerar(EmpresaInfo prest, String tomadorNome, String tomadorDoc, String codTributacao,
                       String descricao, String valor, String numeroNfse, String chaveAcesso,
@@ -43,21 +81,29 @@ public class DanfsePdf {
             PdfWriter.getInstance(doc, fos);
             doc.open();
 
-            // Cabeçalho
-            PdfPTable head = new PdfPTable(new float[]{3, 2});
+            // Cabeçalho: logo | título centralizado | município
+            PdfPTable head = new PdfPTable(new float[]{2.2f, 3f, 2.2f});
             head.setWidthPercentage(100);
-            PdfPCell hl = semBorda();
-            hl.addElement(new Paragraph("DANFSe v2.0", F_TITULO));
-            hl.addElement(new Paragraph("Documento Auxiliar da NFS-e", F_SUB));
-            hl.addElement(new Paragraph("AMBIENTE SANDBOX — SEM VALOR FISCAL", F_AVISO));
-            head.addCell(hl);
-            PdfPCell hr = semBorda();
-            hr.addElement(par("Município: " + dash(prest.cidade())));
-            hr.addElement(par("Ambiente Gerador: 2"));
-            hr.addElement(par("Tipo de Ambiente: 2 (Homologação)"));
-            head.addCell(hr);
+            PdfPCell logoCell = semBorda();
+            logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            logoCell.addElement(logo());
+            head.addCell(logoCell);
+            PdfPCell titleCell = semBorda();
+            titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            titleCell.addElement(centralizado("DANFSe v2.0", fTitulo));
+            titleCell.addElement(centralizado("Documento Auxiliar da NFS-e", fSub));
+            head.addCell(titleCell);
+            PdfPCell munCell = semBorda();
+            munCell.addElement(par("Município: " + dash(prest.cidade())));
+            munCell.addElement(par("Ambiente Gerador: 2"));
+            munCell.addElement(par("Tipo de Ambiente: 2 (Homologação)"));
+            head.addCell(munCell);
             doc.add(head);
-            doc.add(new Paragraph(" ", F_LABEL));
+
+            Paragraph avisoP = centralizado("NFS-e SEM VALIDADE JURÍDICA", fAviso);
+            avisoP.setSpacingBefore(2);
+            avisoP.setSpacingAfter(4);
+            doc.add(avisoP);
 
             // Chave de acesso
             PdfPTable chaveT = tabela(1);
@@ -65,12 +111,11 @@ public class DanfsePdf {
             doc.add(chaveT);
 
             // Identificação NFS-e / DPS + QR
-            Image qr = qrCode("https://www.nfse.gov.br/consulta/" + dash(chaveAcesso));
             PdfPTable idT = tabela(4);
             idT.addCell(campo("NÚMERO DA NFS-e", numeroNfse));
             idT.addCell(campo("COMPETÊNCIA", competencia));
             idT.addCell(campo("DATA/HORA EMISSÃO NFS-e", dataHoraEmissao));
-            PdfPCell qrCell = new PdfPCell(qr, false);
+            PdfPCell qrCell = new PdfPCell(qrCode("https://www.nfse.gov.br/consulta/" + dash(chaveAcesso)), false);
             qrCell.setRowspan(2);
             qrCell.setBorderColor(BORDA);
             qrCell.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -166,18 +211,18 @@ public class DanfsePdf {
             ib.addCell(campo("Valor Total Apurado - CBS", "-"));
             doc.add(ib);
 
-            // Valores
+            // Valores (com sombreamento nos destaques)
             String vFmt = reais(valor);
             PdfPTable va = tabela(4);
             va.addCell(secao("VALORES DA NFS-e", 4));
-            va.addCell(campo("VALOR TOTAL DA NFS-e", vFmt));
+            va.addCell(campoDestaque("VALOR TOTAL DA NFS-e", vFmt));
             va.addCell(campo("VALOR DA OPERAÇÃO / SERVIÇO", vFmt));
             va.addCell(campo("Desconto Incondicionado", "-"));
             va.addCell(campo("Desconto Condicionado", "-"));
             va.addCell(campo("Total das Retenções (ISSQN/Fed.)", "R$ 0,00"));
             va.addCell(campo("VALOR LÍQUIDO DA NFS-e", vFmt));
             va.addCell(campo("Total do IBS/CBS", "R$ 0,00"));
-            va.addCell(campo("VALOR LÍQUIDO + IBS/CBS", vFmt));
+            va.addCell(campoDestaque("VALOR LÍQUIDO DA NFS-e + IBS/CBS", vFmt));
             doc.add(va);
 
             // Complementares
@@ -201,6 +246,17 @@ public class DanfsePdf {
 
     // ---- helpers ----
 
+    private Element logo() throws Exception {
+        Path logoPath = Paths.get("logo-nfse.png");
+        if (Files.exists(logoPath)) {
+            Image img = Image.getInstance(logoPath.toString());
+            img.scaleToFit(140, 44);
+            return img;
+        }
+        return new Paragraph("NFS-e", new Font(fTitulo.getBaseFont() != null ? fTitulo.getBaseFont() : null,
+                18, Font.BOLD, new Color(0, 150, 70)));
+    }
+
     private PdfPTable tabela(int cols) {
         PdfPTable t = new PdfPTable(cols);
         t.setWidthPercentage(100);
@@ -212,6 +268,12 @@ public class DanfsePdf {
         return campoSpan(label, valor, 1);
     }
 
+    private PdfPCell campoDestaque(String label, String valor) {
+        PdfPCell c = campoSpan(label, valor, 1);
+        c.setBackgroundColor(DESTAQUE);
+        return c;
+    }
+
     private PdfPCell campoSpan(String label, String valor, int span) {
         PdfPCell c = new PdfPCell();
         c.setColspan(span);
@@ -219,18 +281,18 @@ public class DanfsePdf {
         c.setPadding(2);
         c.setPaddingBottom(3);
         if (label != null && !label.isEmpty()) {
-            Paragraph pl = new Paragraph(label, F_LABEL);
+            Paragraph pl = new Paragraph(label, fLabel);
             pl.setLeading(6);
             c.addElement(pl);
         }
-        Paragraph pv = new Paragraph(dash(valor), F_VAL);
+        Paragraph pv = new Paragraph(dash(valor), fVal);
         pv.setLeading(9);
         c.addElement(pv);
         return c;
     }
 
     private PdfPCell secao(String titulo, int span) {
-        PdfPCell c = new PdfPCell(new Phrase(titulo, F_SECAO));
+        PdfPCell c = new PdfPCell(new Phrase(titulo, fSecao));
         c.setColspan(span);
         c.setBackgroundColor(CINZA);
         c.setBorderColor(BORDA);
@@ -245,14 +307,20 @@ public class DanfsePdf {
     }
 
     private Paragraph par(String s) {
-        return new Paragraph(s, F_SUB);
+        return new Paragraph(s, fSub);
+    }
+
+    private Paragraph centralizado(String s, Font f) {
+        Paragraph p = new Paragraph(s, f);
+        p.setAlignment(Element.ALIGN_CENTER);
+        return p;
     }
 
     private Image qrCode(String conteudo) throws Exception {
         BitMatrix matrix = new QRCodeWriter().encode(conteudo, BarcodeFormat.QR_CODE, 130, 130);
         BufferedImage bi = MatrixToImageWriter.toBufferedImage(matrix);
         Image img = Image.getInstance(bi, Color.WHITE);
-        img.scaleAbsolute(62, 62);
+        img.scaleAbsolute(62, 62); // ~2,2 cm (mínimo NT: 1,52 cm)
         return img;
     }
 
