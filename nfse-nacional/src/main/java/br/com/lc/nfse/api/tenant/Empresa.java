@@ -33,6 +33,18 @@ public class Empresa {
     private String codMunIbge;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "op_simples_nacional", nullable = false)
+    private OpSimplesNacional opSimplesNacional;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "regime_especial_tributacao", nullable = false)
+    private RegimeEspecialTributacao regimeEspecialTributacao;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "regime_apuracao_simples_nacional")
+    private RegimeApuracaoSimplesNacional regimeApuracaoSimplesNacional;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEmpresa status;
 
@@ -44,8 +56,11 @@ public class Empresa {
 
     protected Empresa() {}
 
-    public static Empresa nova(UUID contaId, String cnpj, String razaoSocial,
-                               String inscricaoMunicipal, String codMunIbge, OffsetDateTime agora) {
+    public static Empresa nova(UUID contaId, String cnpj, String razaoSocial, String inscricaoMunicipal,
+                               String codMunIbge, OpSimplesNacional opSimplesNacional,
+                               RegimeEspecialTributacao regimeEspecialTributacao,
+                               RegimeApuracaoSimplesNacional regimeApuracaoSimplesNacional,
+                               OffsetDateTime agora) {
         Empresa e = new Empresa();
         e.id = UUID.randomUUID();
         e.contaId = contaId;
@@ -53,6 +68,9 @@ public class Empresa {
         e.razaoSocial = razaoSocial;
         e.inscricaoMunicipal = inscricaoMunicipal;
         e.codMunIbge = codMunIbge;
+        e.opSimplesNacional = opSimplesNacional;
+        e.regimeEspecialTributacao = regimeEspecialTributacao;
+        e.regimeApuracaoSimplesNacional = regimeApuracaoSimplesNacional;
         e.status = StatusEmpresa.ATIVA;
         e.criadoEm = agora;
         e.atualizadoEm = agora;
@@ -65,5 +83,8 @@ public class Empresa {
     public String getRazaoSocial() { return razaoSocial; }
     public String getInscricaoMunicipal() { return inscricaoMunicipal; }
     public String getCodMunIbge() { return codMunIbge; }
+    public OpSimplesNacional getOpSimplesNacional() { return opSimplesNacional; }
+    public RegimeEspecialTributacao getRegimeEspecialTributacao() { return regimeEspecialTributacao; }
+    public RegimeApuracaoSimplesNacional getRegimeApuracaoSimplesNacional() { return regimeApuracaoSimplesNacional; }
     public StatusEmpresa getStatus() { return status; }
 }

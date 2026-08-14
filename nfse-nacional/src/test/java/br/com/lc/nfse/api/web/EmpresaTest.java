@@ -34,7 +34,8 @@ class EmpresaTest extends AbstractPostgresIT {
     ApiKeyService apiKeyService;
 
     private static final String EMP_JSON = """
-            {"cnpj":"11222333000181","razaoSocial":"Loja A","inscricaoMunicipal":"123","codMunIbge":"3550308"}
+            {"cnpj":"11222333000181","razaoSocial":"Loja A","inscricaoMunicipal":"123","codMunIbge":"3550308",
+             "opSimplesNacional":"NAO_OPTANTE","regimeEspecialTributacao":"NENHUM"}
             """;
 
     private RestClient client() {
@@ -91,7 +92,8 @@ class EmpresaTest extends AbstractPostgresIT {
     void ibgeInvalidoRetorna422() {
         String chave = semear("Conta D", "sk_test_dddddddddddddddddddddddddddddddd");
         String bad = """
-                {"cnpj":"11222333000181","razaoSocial":"Loja","inscricaoMunicipal":null,"codMunIbge":"123"}
+                {"cnpj":"11222333000181","razaoSocial":"Loja","inscricaoMunicipal":null,"codMunIbge":"123",
+                 "opSimplesNacional":"NAO_OPTANTE"}
                 """;
 
         HttpStatusCode status = client().post().uri("/v1/empresas").header("X-Api-Key", chave)

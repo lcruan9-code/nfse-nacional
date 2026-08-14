@@ -29,8 +29,11 @@ public class EmpresaService {
         if (repositorio.existsByContaIdAndCnpj(contaId, req.cnpj())) {
             throw new ConflitoException("CNPJ já cadastrado nesta conta: " + req.cnpj());
         }
+        RegimeEspecialTributacao especial = req.regimeEspecialTributacao() != null
+                ? req.regimeEspecialTributacao() : RegimeEspecialTributacao.NENHUM;
         Empresa e = repositorio.save(Empresa.nova(contaId, req.cnpj(), req.razaoSocial(),
-                req.inscricaoMunicipal(), req.codMunIbge(), OffsetDateTime.now()));
+                req.inscricaoMunicipal(), req.codMunIbge(), req.opSimplesNacional(), especial,
+                req.regimeApuracaoSimplesNacional(), OffsetDateTime.now()));
         return toResponse(e);
     }
 
@@ -53,6 +56,9 @@ public class EmpresaService {
         }
         if (req.razaoSocial() == null || req.razaoSocial().isBlank()) {
             throw new IllegalArgumentException("Razão social é obrigatória");
+        }
+        if (req.opSimplesNacional() == null) {
+            throw new IllegalArgumentException("opSimplesNacional é obrigatório");
         }
     }
 

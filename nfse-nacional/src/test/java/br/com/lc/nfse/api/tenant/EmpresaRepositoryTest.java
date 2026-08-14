@@ -22,10 +22,12 @@ class EmpresaRepositoryTest extends AbstractPostgresIT {
         OffsetDateTime agora = OffsetDateTime.now();
         Conta a = contaRepository.save(Conta.nova("Conta A", agora));
         Conta b = contaRepository.save(Conta.nova("Conta B", agora));
-        empresaRepository.save(Empresa.nova(a.getId(), "11222333000181", "Emp A1", null, "3550308", agora));
-        empresaRepository.save(Empresa.nova(a.getId(), "11222333000262", "Emp A2", null, "3550308", agora));
-        Empresa daB = empresaRepository.save(
-                Empresa.nova(b.getId(), "99888777000166", "Emp B1", null, "3304557", agora));
+        empresaRepository.save(Empresa.nova(a.getId(), "11222333000181", "Emp A1", null, "3550308",
+                OpSimplesNacional.NAO_OPTANTE, RegimeEspecialTributacao.NENHUM, null, agora));
+        empresaRepository.save(Empresa.nova(a.getId(), "11222333000262", "Emp A2", null, "3550308",
+                OpSimplesNacional.NAO_OPTANTE, RegimeEspecialTributacao.NENHUM, null, agora));
+        Empresa daB = empresaRepository.save(Empresa.nova(b.getId(), "99888777000166", "Emp B1", null,
+                "3304557", OpSimplesNacional.NAO_OPTANTE, RegimeEspecialTributacao.NENHUM, null, agora));
 
         assertEquals(2, empresaRepository.findByContaId(a.getId()).size());
         assertTrue(empresaRepository.findByIdAndContaId(daB.getId(), a.getId()).isEmpty(), "isolamento");
