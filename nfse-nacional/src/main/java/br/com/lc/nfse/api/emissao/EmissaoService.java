@@ -11,6 +11,7 @@ import br.com.lc.nfse.core.cert.CertificadoLoader;
 import br.com.lc.nfse.core.dps.DpsBuilder;
 import br.com.lc.nfse.core.dps.DpsSigner;
 import br.com.lc.nfse.core.dps.DpsValidator;
+import br.com.lc.nfse.core.dps.IbsCbs;
 import br.com.lc.nfse.core.dps.RequisicaoDpsDto;
 import br.com.lc.nfse.core.dps.ResultadoValidacao;
 import br.com.lc.nfse.web.CertificadoProvider;
@@ -61,7 +62,7 @@ public class EmissaoService {
         String numero = String.valueOf(emissaoRepository.countByEmpresaId(empresa.getId()) + 1);
         RequisicaoDpsDto dto = montarDto(empresa, req, numero);
 
-        String xml = dpsBuilder.construir(dto);
+        String xml = dpsBuilder.construir(dto, IbsCbs.padrao());
         ResultadoValidacao validacao = dpsValidator.validar(xml);
         if (!validacao.valido()) {
             throw new IllegalArgumentException("DPS inválida: " + validacao.mensagem());
@@ -72,11 +73,20 @@ public class EmissaoService {
 
         ResultadoSimulado sim = simulador.simular(req.simular(), numero);
         OffsetDateTime agora = OffsetDateTime.now();
-        Emissao emissao = sim.status() == StatusEmissao.AUTORIZADA
-                ? Emissao.autorizada(principal.contaId(), empresa.getId(), Ambiente.SANDBOX,
-                        sim.chaveAcesso(), sim.numeroNfse(), assinado, agora)
-                : Emissao.rejeitada(principal.contaId(), empresa.getId(), Ambiente.SANDBOX,
-                        sim.motivo(), assinado, agora);
+        Emissao emissao;
+        if (sim.status() == StatusEmissao.AUTORIZADA) {
+            // Alíquotas IBS/CBS apuradas pelo "ADN" (aqui, o sandbox). Default homologação: CBS 0,90% / IBS 0,10%.
+            String aliqCbs = valorOu(req.aliquotaCbs(), "0.90");
+            String aliqIbs = valorOu(req.aliquotaIbs(), "0.10");
+            double base = paraDouble(req.valores().valorServico());
+            emissao = Emissao.autorizada(principal.contaId(), empresa.getId(), Ambiente.SANDBOX,
+                    sim.chaveAcesso(), sim.numeroNfse(), assinado,
+                    aliqCbs, formatar(base * paraDouble(aliqCbs) / 100.0),
+                    aliqIbs, formatar(base * paraDouble(aliqIbs) / 100.0), agora);
+        } else {
+            emissao = Emissao.rejeitada(principal.contaId(), empresa.getId(), Ambiente.SANDBOX,
+                    sim.motivo(), assinado, agora);
+        }
         emissaoRepository.save(emissao);
         return toResponse(emissao);
     }
@@ -100,6 +110,23 @@ public class EmissaoService {
 
     private EmissaoResponse toResponse(Emissao e) {
         return new EmissaoResponse(e.getId(), e.getStatus().name(), e.getChaveAcesso(),
-                e.getNumeroNfse(), e.getMotivo(), e.getXmlDps());
+                e.getNumeroNfse(), e.getMotivo(), e.getXmlDps(),
+                e.getAliquotaCbs(), e.getValorCbs(), e.getAliquotaIbs(), e.getValorIbs());
+    }
+
+    private static String valorOu(String v, String padrao) {
+        return (v == null || v.isBlank()) ? padrao : v.trim();
+    }
+
+    private static double paraDouble(String v) {
+        try {
+            return Double.parseDouble(v.replace(",", "."));
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    private static String formatar(double d) {
+        return String.format(java.util.Locale.US, "%.2f", d);
     }
 }

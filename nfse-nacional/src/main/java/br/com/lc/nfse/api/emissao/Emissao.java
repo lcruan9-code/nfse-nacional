@@ -44,6 +44,18 @@ public class Emissao {
     @Column
     private String motivo;
 
+    @Column(name = "aliquota_cbs")
+    private String aliquotaCbs;
+
+    @Column(name = "valor_cbs")
+    private String valorCbs;
+
+    @Column(name = "aliquota_ibs")
+    private String aliquotaIbs;
+
+    @Column(name = "valor_ibs")
+    private String valorIbs;
+
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm;
 
@@ -53,11 +65,16 @@ public class Emissao {
     protected Emissao() {}
 
     public static Emissao autorizada(UUID contaId, UUID empresaId, Ambiente ambiente, String chaveAcesso,
-                                     String numeroNfse, String xmlDps, OffsetDateTime agora) {
+                                     String numeroNfse, String xmlDps, String aliquotaCbs, String valorCbs,
+                                     String aliquotaIbs, String valorIbs, OffsetDateTime agora) {
         Emissao e = base(contaId, empresaId, ambiente, xmlDps, agora);
         e.status = StatusEmissao.AUTORIZADA;
         e.chaveAcesso = chaveAcesso;
         e.numeroNfse = numeroNfse;
+        e.aliquotaCbs = aliquotaCbs;
+        e.valorCbs = valorCbs;
+        e.aliquotaIbs = aliquotaIbs;
+        e.valorIbs = valorIbs;
         return e;
     }
 
@@ -91,4 +108,8 @@ public class Emissao {
     public String getNumeroNfse() { return numeroNfse; }
     public String getXmlDps() { return xmlDps; }
     public String getMotivo() { return motivo; }
+    public String getAliquotaCbs() { return aliquotaCbs; }
+    public String getValorCbs() { return valorCbs; }
+    public String getAliquotaIbs() { return aliquotaIbs; }
+    public String getValorIbs() { return valorIbs; }
 }

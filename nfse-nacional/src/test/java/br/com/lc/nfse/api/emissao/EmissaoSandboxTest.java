@@ -78,6 +78,12 @@ class EmissaoSandboxTest extends AbstractPostgresIT {
         assertEquals("AUTORIZADA", consulta.getBody().status());
         assertEquals(50, consulta.getBody().chaveAcesso().length());
         assertTrue(consulta.getBody().xmlDps().contains("<Signature"), "DPS deveria estar assinada");
+        assertTrue(consulta.getBody().xmlDps().contains("<IBSCBS>"), "DPS deveria ter o grupo IBSCBS (RTC)");
+        // IBS/CBS apurados sobre R$ 1500,00 com CBS 0,90% e IBS 0,10% (defaults de homologação)
+        assertEquals("0.90", consulta.getBody().aliquotaCbs());
+        assertEquals("13.50", consulta.getBody().valorCbs());
+        assertEquals("0.10", consulta.getBody().aliquotaIbs());
+        assertEquals("1.50", consulta.getBody().valorIbs());
     }
 
     @Test
