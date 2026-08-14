@@ -25,15 +25,21 @@ public class SmokeHeadless {
 
         String numero = "1";
         String chave = "00000000000000000000000000000000000000000000000000";
+        String aCbs = "0.90", vCbs = "0.00", aIbs = "0.10", vIbs = "0.00";
         if (noAr) {
             NfseApiClient.EmitirResult r = api.emitir("Servico de teste headless", "010101", emp.ibge(),
-                    "1234.56", 1, 1, "AUTORIZADA");
+                    "1234.56", 1, 1, "AUTORIZADA", "0.90", "0.10");
             System.out.println("[API] emitido id=" + r.id() + " status=" + r.status());
             NfseApiClient.ConsultaResult c = api.consultar(r.id());
             System.out.println("[API] consulta status=" + c.status() + " chave=" + c.chaveAcesso()
-                    + " numero=" + c.numeroNfse());
+                    + " numero=" + c.numeroNfse() + " | CBS " + c.aliquotaCbs() + "%=R$" + c.valorCbs()
+                    + " IBS " + c.aliquotaIbs() + "%=R$" + c.valorIbs());
             numero = c.numeroNfse();
             chave = c.chaveAcesso();
+            aCbs = c.aliquotaCbs();
+            vCbs = c.valorCbs();
+            aIbs = c.aliquotaIbs();
+            vIbs = c.valorIbs();
         } else {
             System.out.println("[API] fora do ar — PDF sera gerado com dados fixos");
         }
@@ -41,7 +47,7 @@ public class SmokeHeadless {
         Path pdf = Paths.get(System.getProperty("java.io.tmpdir"), "lc_nfse_smoke.pdf");
         new DanfsePdf().gerar(emp, "Cliente Teste LTDA", "12345678000199", "010101", "Servico de teste headless",
                 "1234.56", numero, chave, "14/08/2026", "14/08/2026 10:00:00", "1", numero,
-                "NFS-e Simples Nacional", pdf);
+                "NFS-e Simples Nacional", aCbs, vCbs, aIbs, vIbs, pdf);
         System.out.println("[PDF] gerado=" + Files.exists(pdf) + " tamanho=" + Files.size(pdf) + " (" + pdf + ")");
         System.out.println("SMOKE OK");
     }

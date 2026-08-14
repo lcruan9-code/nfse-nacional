@@ -43,6 +43,8 @@ public class NfseTela extends JFrame {
     private final JComboBox<String> simular = new JComboBox<>(new String[]{"AUTORIZADA", "REJEITADA"});
     private final CampoTexto tomadorNome = new CampoTexto();
     private final CampoTexto tomadorDoc = new CampoTexto();
+    private final CampoValorNumerico aliqCbs = new CampoValorNumerico();
+    private final CampoValorNumerico aliqIbs = new CampoValorNumerico();
 
     private final JButton btnTestar = new JButton("Testar conexão");
     private final JButton btnEmitir = new JButton("Emitir NFS-e");
@@ -52,6 +54,10 @@ public class NfseTela extends JFrame {
 
     private String ultNumero;
     private String ultChave;
+    private String ultAliqCbs;
+    private String ultValorCbs;
+    private String ultAliqIbs;
+    private String ultValorIbs;
 
     public NfseTela(Config config, EmpresaInfo empresa) {
         super("LC Sistemas — Emissão de NFS-e (TESTE / SANDBOX)");
@@ -81,6 +87,8 @@ public class NfseTela extends JFrame {
         main.add(Box.createVerticalStrut(8));
         main.add(painelTomador());
         main.add(Box.createVerticalStrut(8));
+        main.add(painelReforma());
+        main.add(Box.createVerticalStrut(8));
 
         resultado.setEditable(false);
         resultado.setBorder(new TitledBorder("Resultado"));
@@ -90,6 +98,8 @@ public class NfseTela extends JFrame {
 
         codTrib.setText("010101");
         valor.setText(0.0);
+        aliqCbs.setText(0.90);
+        aliqIbs.setText(0.10);
         btnImprimir.setEnabled(false);
         btnTestar.addActionListener(e -> testar());
         btnEmitir.addActionListener(e -> emitir());
@@ -151,6 +161,15 @@ public class NfseTela extends JFrame {
         return p;
     }
 
+    private JPanel painelReforma() {
+        JPanel p = grid("Reforma Tributária — IBS/CBS (homologação)");
+        p.add(new JLabel("Alíquota CBS (%):"));
+        p.add(aliqCbs);
+        p.add(new JLabel("Alíquota IBS (%):"));
+        p.add(aliqIbs);
+        return p;
+    }
+
     private JPanel grid(String titulo) {
         JPanel p = new JPanel(new GridLayout(0, 2, 6, 4));
         p.setBorder(new TitledBorder(titulo));
@@ -195,11 +214,13 @@ public class NfseTela extends JFrame {
         final int ti = (Integer) tribIssqn.getSelectedItem();
         final int tr = (Integer) tipoRet.getSelectedItem();
         final String sim = (String) simular.getSelectedItem();
+        final String aCbs = String.format(Locale.US, "%.2f", aliqCbs.getValor());
+        final String aIbs = String.format(Locale.US, "%.2f", aliqIbs.getValor());
         btnEmitir.setEnabled(false);
         status.setText(" Emitindo...");
         new SwingWorker<NfseApiClient.ConsultaResult, Void>() {
             protected NfseApiClient.ConsultaResult doInBackground() throws Exception {
-                NfseApiClient.EmitirResult r = api.emitir(desc, ct, empresa.ibge(), valorStr, ti, tr, sim);
+                NfseApiClient.EmitirResult r = api.emitir(desc, ct, empresa.ibge(), valorStr, ti, tr, sim, aCbs, aIbs);
                 return api.consultar(r.id());
             }
 
@@ -210,8 +231,14 @@ public class NfseTela extends JFrame {
                     if ("AUTORIZADA".equals(c.status())) {
                         ultNumero = c.numeroNfse();
                         ultChave = c.chaveAcesso();
+                        ultAliqCbs = c.aliquotaCbs();
+                        ultValorCbs = c.valorCbs();
+                        ultAliqIbs = c.aliquotaIbs();
+                        ultValorIbs = c.valorIbs();
                         resultado.setText("Status: AUTORIZADA\nNúmero: " + c.numeroNfse()
-                                + "\nChave de acesso: " + c.chaveAcesso());
+                                + "\nChave de acesso: " + c.chaveAcesso()
+                                + "\nCBS " + c.aliquotaCbs() + "% = R$ " + c.valorCbs()
+                                + "   |   IBS " + c.aliquotaIbs() + "% = R$ " + c.valorIbs());
                         btnImprimir.setEnabled(true);
                         status.setText(" NFS-e autorizada (sandbox). Pode imprimir o PDF.");
                     } else {
@@ -240,7 +267,8 @@ public class NfseTela extends JFrame {
             Path pdf = Paths.get(System.getProperty("java.io.tmpdir"),
                     "nfse-sandbox-" + (ultNumero == null ? "0" : ultNumero) + ".pdf");
             new DanfsePdf().gerar(empresa, tomadorNome.getText(), tomadorDoc.getText(), codTrib.getText().trim(),
-                    descricao.getText(), valorStr, ultNumero, ultChave, comp, dh, "1", ultNumero, situacao, pdf);
+                    descricao.getText(), valorStr, ultNumero, ultChave, comp, dh, "1", ultNumero, situacao,
+                    ultAliqCbs, ultValorCbs, ultAliqIbs, ultValorIbs, pdf);
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().open(pdf.toFile());
             }

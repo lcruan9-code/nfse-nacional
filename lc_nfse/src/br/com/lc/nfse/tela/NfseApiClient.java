@@ -21,7 +21,8 @@ public class NfseApiClient {
 
     public record EmitirResult(String id, String status) {}
 
-    public record ConsultaResult(String status, String chaveAcesso, String numeroNfse, String motivo) {}
+    public record ConsultaResult(String status, String chaveAcesso, String numeroNfse, String motivo,
+                                 String aliquotaCbs, String valorCbs, String aliquotaIbs, String valorIbs) {}
 
     public boolean testarConexao() {
         try {
@@ -35,14 +36,16 @@ public class NfseApiClient {
     }
 
     public EmitirResult emitir(String descricao, String codTribNac, String codMunPrest,
-                               String valor, int tribIssqn, int tipoRet, String simular) throws Exception {
+                               String valor, int tribIssqn, int tipoRet, String simular,
+                               String aliquotaCbs, String aliquotaIbs) throws Exception {
         String body = "{"
                 + "\"empresaId\":\"" + config.apiEmpresaId + "\","
                 + "\"servico\":{\"codTribNacional\":\"" + esc(codTribNac) + "\",\"descricao\":\"" + esc(descricao)
                 + "\",\"codMunPrestacao\":\"" + esc(codMunPrest) + "\"},"
                 + "\"valores\":{\"valorServico\":\"" + esc(valor) + "\",\"tributacaoIssqn\":" + tribIssqn
                 + ",\"tipoRetencaoIssqn\":" + tipoRet + "},"
-                + "\"simular\":\"" + esc(simular) + "\"}";
+                + "\"simular\":\"" + esc(simular) + "\","
+                + "\"aliquotaCbs\":\"" + esc(aliquotaCbs) + "\",\"aliquotaIbs\":\"" + esc(aliquotaIbs) + "\"}";
         HttpResponse<String> r = http.send(
                 HttpRequest.newBuilder(URI.create(config.apiBaseUrl + "/v1/nfse"))
                         .header("X-Api-Key", config.apiKey)
@@ -66,7 +69,9 @@ public class NfseApiClient {
         }
         String b = r.body();
         return new ConsultaResult(campo(b, "status"), campo(b, "chaveAcesso"),
-                campo(b, "numeroNfse"), campo(b, "motivo"));
+                campo(b, "numeroNfse"), campo(b, "motivo"),
+                campo(b, "aliquotaCbs"), campo(b, "valorCbs"),
+                campo(b, "aliquotaIbs"), campo(b, "valorIbs"));
     }
 
     /** Extrai "nome":"valor" (ou null) de um JSON plano. */

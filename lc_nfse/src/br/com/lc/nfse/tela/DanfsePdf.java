@@ -75,7 +75,8 @@ public class DanfsePdf {
     public Path gerar(EmpresaInfo prest, String tomadorNome, String tomadorDoc, String codTributacao,
                       String descricao, String valor, String numeroNfse, String chaveAcesso,
                       String competencia, String dataHoraEmissao, String serieDps, String numeroDps,
-                      String situacao, Path arquivo) throws Exception {
+                      String situacao, String aliquotaCbs, String valorCbs, String aliquotaIbs,
+                      String valorIbs, Path arquivo) throws Exception {
         Document doc = new Document(PageSize.A4, 22, 22, 22, 22);
         try (FileOutputStream fos = new FileOutputStream(arquivo.toFile())) {
             PdfWriter.getInstance(doc, fos);
@@ -200,15 +201,15 @@ public class DanfsePdf {
             ib.addCell(campo("Exclusões e Reduções da BC", "R$ 0,00"));
             ib.addCell(campo("BC Após Exclusões/Reduções", "-"));
             ib.addCell(campo("Red. Alíquota IBS / CBS", "- / -"));
-            ib.addCell(campo("Alíquota IBS UF / Mun", "- / -"));
-            ib.addCell(campo("Alíq. Efetiva Mun. - IBS", "-"));
-            ib.addCell(campo("Valor Apurado Mun. - IBS", "-"));
+            ib.addCell(campo("Alíquota IBS UF / Mun", pct(aliquotaIbs) + " / -"));
+            ib.addCell(campo("Alíq. Efetiva Mun. - IBS", pct(aliquotaIbs)));
+            ib.addCell(campo("Valor Apurado Mun. - IBS", reais(valorIbs)));
             ib.addCell(campo("Alíq. Efetiva Est. - IBS", "-"));
             ib.addCell(campo("Valor Apurado Est. - IBS", "-"));
-            ib.addCell(campo("Valor Total Apurado - IBS", "-"));
-            ib.addCell(campo("Alíquota - CBS", "-"));
-            ib.addCell(campo("Alíq. Efetiva - CBS", "-"));
-            ib.addCell(campo("Valor Total Apurado - CBS", "-"));
+            ib.addCell(campo("Valor Total Apurado - IBS", reais(valorIbs)));
+            ib.addCell(campo("Alíquota - CBS", pct(aliquotaCbs)));
+            ib.addCell(campo("Alíq. Efetiva - CBS", pct(aliquotaCbs)));
+            ib.addCell(campo("Valor Total Apurado - CBS", reais(valorCbs)));
             doc.add(ib);
 
             // Valores (com sombreamento nos destaques)
@@ -221,8 +222,8 @@ public class DanfsePdf {
             va.addCell(campo("Desconto Condicionado", "-"));
             va.addCell(campo("Total das Retenções (ISSQN/Fed.)", "R$ 0,00"));
             va.addCell(campo("VALOR LÍQUIDO DA NFS-e", vFmt));
-            va.addCell(campo("Total do IBS/CBS", "R$ 0,00"));
-            va.addCell(campoDestaque("VALOR LÍQUIDO DA NFS-e + IBS/CBS", vFmt));
+            va.addCell(campo("Total do IBS/CBS", reaisSoma(valorCbs, valorIbs)));
+            va.addCell(campoDestaque("VALOR LÍQUIDO DA NFS-e + IBS/CBS", reaisSoma(valor, valorCbs, valorIbs)));
             doc.add(va);
 
             // Complementares
@@ -334,5 +335,25 @@ public class DanfsePdf {
         } catch (Exception e) {
             return "R$ " + v;
         }
+    }
+
+    private static String pct(String v) {
+        try {
+            return String.format(new Locale("pt", "BR"), "%,.2f %%", Double.parseDouble(v));
+        } catch (Exception e) {
+            return dash(v);
+        }
+    }
+
+    private static String reaisSoma(String... valores) {
+        double total = 0;
+        for (String v : valores) {
+            try {
+                total += Double.parseDouble(v);
+            } catch (Exception ignored) {
+                // ignora valores não numéricos
+            }
+        }
+        return String.format(new Locale("pt", "BR"), "R$ %,.2f", total);
     }
 }
