@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: nfse-nacional
+  datasource:
+    url: jdbc:postgresql://localhost:55432/nfse   # container nfse-postgres (5432 do host é o Postgres nativo do Windows)
+    username: nfse
+    password: ${NFSE_DB_PASSWORD:nfse_dev_pwd}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+nfse:
+  admin:
+    api-key: ${NFSE_ADMIN_KEY:admin_dev_key}
