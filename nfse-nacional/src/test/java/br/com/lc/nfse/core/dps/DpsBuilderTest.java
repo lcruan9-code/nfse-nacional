@@ -18,6 +18,15 @@ class DpsBuilderTest {
         assertTrue(r.valido(), "DPS deveria validar contra o XSD; erro: " + r.mensagem());
     }
 
+    @Test
+    void dpsComIbsCbsValidaContraOXsd() {
+        String xml = builder.construir(fixture(), IbsCbs.padrao());
+
+        ResultadoValidacao r = validator.validar(xml);
+
+        assertTrue(r.valido(), "DPS com IBSCBS deveria validar; erro: " + r.mensagem());
+    }
+
     static RequisicaoDpsDto fixture() {
         return new RequisicaoDpsDto(
                 "11222333000181",             // cnpjPrestador

@@ -14,6 +14,10 @@ public class DpsBuilder {
     private static final String TIPO_INSC_CNPJ = "2";
 
     public String construir(RequisicaoDpsDto dto) {
+        return construir(dto, null);
+    }
+
+    public String construir(RequisicaoDpsDto dto, IbsCbs ibsCbs) {
         String id = montarId(dto);
         StringBuilder sb = new StringBuilder(1024);
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -57,6 +61,18 @@ public class DpsBuilder {
         sb.append("<totTrib><indTotTrib>0</indTotTrib></totTrib>");
         sb.append("</trib>");
         sb.append("</valores>");
+
+        if (ibsCbs != null) {
+            sb.append("<IBSCBS>");
+            sb.append("<finNFSe>").append(ibsCbs.finNFSe()).append("</finNFSe>");
+            sb.append("<cIndOp>").append(ibsCbs.cIndOp()).append("</cIndOp>");
+            sb.append("<indDest>").append(ibsCbs.indDest()).append("</indDest>");
+            sb.append("<valores><trib><gIBSCBS>");
+            sb.append("<CST>").append(ibsCbs.cst()).append("</CST>");
+            sb.append("<cClassTrib>").append(ibsCbs.cClassTrib()).append("</cClassTrib>");
+            sb.append("</gIBSCBS></trib></valores>");
+            sb.append("</IBSCBS>");
+        }
 
         sb.append("</infDPS>");
         sb.append("</DPS>");
