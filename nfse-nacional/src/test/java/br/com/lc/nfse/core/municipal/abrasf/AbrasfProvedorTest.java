@@ -38,6 +38,26 @@ class AbrasfProvedorTest {
     }
 
     @Test
+    void emiteRejeitadaQuandoSimuladoComoRejeitada() throws Exception {
+        CertificadoLoader.Certificado cert = new CertificadoLoader().carregar(
+                getClass().getResourceAsStream("/certs/teste.p12"), "changeit".toCharArray());
+        ResultadoEmissao r = new AbrasfProvedor().emitir(rps(), cert, cfg(), "REJEITADA");
+
+        assertThat(r.status()).isEqualTo(StatusEmissaoMunicipal.REJEITADA);
+        assertThat(r.numeroNfse()).isNull();
+        assertThat(r.mensagens()).isNotEmpty();
+    }
+
+    @Test
+    void emitirComContratoDaInterfaceUsaAutorizada() throws Exception {
+        CertificadoLoader.Certificado cert = new CertificadoLoader().carregar(
+                getClass().getResourceAsStream("/certs/teste.p12"), "changeit".toCharArray());
+        ResultadoEmissao r = new AbrasfProvedor().emitir(rps(), cert, cfg());
+
+        assertThat(r.status()).isEqualTo(StatusEmissaoMunicipal.AUTORIZADA);
+    }
+
+    @Test
     void tipoEhAbrasf() {
         assertThat(new AbrasfProvedor().tipo()).isEqualTo(TipoProvedor.ABRASF_2X);
     }
