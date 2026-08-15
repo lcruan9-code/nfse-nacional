@@ -25,7 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class EmissaoMunicipalIT extends AbstractPostgresIT {
+class EmissaoMunicipalTest extends AbstractPostgresIT {
 
     @Value("${local.server.port}") int port;
     @Autowired ContaRepository contaRepo;
