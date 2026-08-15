@@ -36,6 +36,7 @@ public abstract class AbstractPostgresIT {
     /** Banco limpo antes de cada teste — o container é compartilhado por todas as classes. */
     @BeforeEach
     void limparBanco() {
-        jdbcTemplate.execute("truncate table emissoes, api_keys, empresas, contas restart identity cascade");
+        jdbcTemplate.execute(
+                "truncate table emissoes_municipais, emissoes, api_keys, empresas, contas restart identity cascade");
     }
 }
