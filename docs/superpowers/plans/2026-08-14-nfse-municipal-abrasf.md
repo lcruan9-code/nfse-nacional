@@ -192,9 +192,12 @@ import br.com.lc.nfse.core.xsd.SanitizadorAncoras;
 ```
 Apagar `src/main/java/br/com/lc/nfse/core/dps/ResultadoValidacao.java`.
 
-- [ ] **Step 7: Atualizar imports em `EmissaoService.java` e `DpsValidatorTest.java`**
+- [ ] **Step 7: Ajustar imports em TODOS os arquivos que referenciam `ResultadoValidacao`**
 
-Em ambos, trocar `import br.com.lc.nfse.core.dps.ResultadoValidacao;` por `import br.com.lc.nfse.core.xsd.ResultadoValidacao;`. (Em `EmissaoService` a linha 16 do arquivo atual; em `DpsValidatorTest` onde referenciar `ResultadoValidacao`.)
+`ResultadoValidacao` é usado em 6 arquivos além do próprio. Após mover para `core/xsd`:
+- **Trocar** o import existente `br.com.lc.nfse.core.dps.ResultadoValidacao` → `br.com.lc.nfse.core.xsd.ResultadoValidacao` em: `api/emissao/EmissaoService.java`, `web/DpsPreviewController.java`.
+- **Adicionar** `import br.com.lc.nfse.core.xsd.ResultadoValidacao;` (hoje usam sem import, por estarem no mesmo pacote `core.dps`) em: `core/dps/DpsValidator.java` (se ainda não adicionado no Step 6), `src/test/java/.../core/dps/DpsBuilderTest.java`, `src/test/java/.../core/dps/DpsSignerTest.java`, `src/test/java/.../core/dps/DpsValidatorTest.java`.
+- Conferir com `grep -rln ResultadoValidacao src/` que nenhum arquivo ficou sem o import novo, e compilar (`./mvnw -q -DskipTests test-compile`) para garantir.
 
 - [ ] **Step 8: Criar `AbrasfValidator.java`**
 
@@ -284,6 +287,7 @@ git add nfse-nacional/src/main/java/br/com/lc/nfse/core/xsd \
         nfse-nacional/src/main/resources/schemas/abrasf \
         nfse-nacional/src/main/java/br/com/lc/nfse/core/dps/DpsValidator.java \
         nfse-nacional/src/main/java/br/com/lc/nfse/api/emissao/EmissaoService.java \
+        nfse-nacional/src/main/java/br/com/lc/nfse/web/DpsPreviewController.java \
         nfse-nacional/src/test/java/br/com/lc/nfse/core
 git rm nfse-nacional/src/main/java/br/com/lc/nfse/core/dps/ResultadoValidacao.java
 git commit -m "feat: kernel XSD compartilhado (core/xsd) + validador ABRASF 2.04"
