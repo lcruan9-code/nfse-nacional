@@ -13,7 +13,7 @@ import br.com.lc.nfse.core.dps.DpsSigner;
 import br.com.lc.nfse.core.dps.DpsValidator;
 import br.com.lc.nfse.core.dps.IbsCbs;
 import br.com.lc.nfse.core.dps.RequisicaoDpsDto;
-import br.com.lc.nfse.core.dps.ResultadoValidacao;
+import br.com.lc.nfse.core.xsd.ResultadoValidacao;
 import br.com.lc.nfse.web.CertificadoProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

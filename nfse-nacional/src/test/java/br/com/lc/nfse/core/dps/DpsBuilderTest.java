@@ -1,5 +1,6 @@
 package br.com.lc.nfse.core.dps;
 
+import br.com.lc.nfse.core.xsd.ResultadoValidacao;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;

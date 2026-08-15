@@ -1,6 +1,7 @@
 package br.com.lc.nfse.core.dps;
 
 import br.com.lc.nfse.core.cert.CertificadoLoader;
+import br.com.lc.nfse.core.xsd.ResultadoValidacao;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;

@@ -6,7 +6,7 @@ import br.com.lc.nfse.core.dps.DpsPackager;
 import br.com.lc.nfse.core.dps.DpsSigner;
 import br.com.lc.nfse.core.dps.DpsValidator;
 import br.com.lc.nfse.core.dps.RequisicaoDpsDto;
-import br.com.lc.nfse.core.dps.ResultadoValidacao;
+import br.com.lc.nfse.core.xsd.ResultadoValidacao;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
