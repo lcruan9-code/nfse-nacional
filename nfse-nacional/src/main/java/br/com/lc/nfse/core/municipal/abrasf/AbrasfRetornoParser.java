@@ -40,6 +40,12 @@ public class AbrasfRetornoParser {
 
     private Document parse(String xml) throws Exception {
         DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+        // XXE hardening: disallow external entities and DOCTYPE declarations
+        f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        f.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        f.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        f.setXIncludeAware(false);
+        f.setExpandEntityReferences(false);
         f.setNamespaceAware(true);
         return f.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
     }
