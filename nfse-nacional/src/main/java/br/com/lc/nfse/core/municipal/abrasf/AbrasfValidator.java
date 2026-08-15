@@ -42,9 +42,26 @@ public class AbrasfValidator {
             "(<xsd:element\\s+name=\"CompNfse\"\\s+type=\"tcCompNfse\")\\s+"
                     + "minOccurs=\"[^\"]*\"\\s+maxOccurs=\"[^\"]*\"\\s*(/>)");
 
+    /** Schema compilado 1x por JVM e reaproveitado (evita recompilar o XSD a cada request). */
+    private static volatile Schema schemaCache;
+
     private final Schema schema;
 
-    public AbrasfValidator() { this.schema = carregar(); }
+    public AbrasfValidator() { this.schema = obterSchema(); }
+
+    private static Schema obterSchema() {
+        Schema s = schemaCache;
+        if (s == null) {
+            synchronized (AbrasfValidator.class) {
+                s = schemaCache;
+                if (s == null) {
+                    s = carregar();
+                    schemaCache = s;
+                }
+            }
+        }
+        return s;
+    }
 
     public ResultadoValidacao validar(String xml) {
         try {
@@ -58,7 +75,7 @@ public class AbrasfValidator {
         }
     }
 
-    private Schema carregar() {
+    private static Schema carregar() {
         try {
             Path dir = Files.createTempDirectory("abrasf-xsd-");
             dir.toFile().deleteOnExit();
@@ -78,13 +95,13 @@ public class AbrasfValidator {
     }
 
     /** Remove minOccurs/maxOccurs da declaração global inválida do CompNfse (ver javadoc da classe). */
-    private String corrigirElementoGlobalInvalido(String xsd) {
+    private static String corrigirElementoGlobalInvalido(String xsd) {
         Matcher m = COMPNFSE_GLOBAL_INVALIDO.matcher(xsd);
         return m.find() ? m.replaceAll("$1$2") : xsd;
     }
 
-    private String ler(String caminho) throws IOException {
-        try (InputStream is = getClass().getResourceAsStream(caminho)) {
+    private static String ler(String caminho) throws IOException {
+        try (InputStream is = AbrasfValidator.class.getResourceAsStream(caminho)) {
             if (is == null) throw new IllegalStateException("XSD não encontrado: " + caminho);
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
