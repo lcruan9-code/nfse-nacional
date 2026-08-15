@@ -65,10 +65,12 @@ class EmissaoMunicipalIT extends AbstractPostgresIT {
     void emiteMunicipalAutorizadaEConsulta() {
         Setup s = setup("Cli Mun", "sk_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Ambiente.SANDBOX);
 
-        EmissaoMunicipalResponse emitida = client().post().uri("/v1/nfse-municipal")
+        var respostaEmissao = client().post().uri("/v1/nfse-municipal")
                 .header("X-Api-Key", s.chave()).contentType(MediaType.APPLICATION_JSON)
                 .body(json(s.empresaId(), "4204608", "AUTORIZADA"))
-                .retrieve().toEntity(EmissaoMunicipalResponse.class).getBody();
+                .retrieve().toEntity(EmissaoMunicipalResponse.class);
+        assertEquals(202, respostaEmissao.getStatusCode().value());
+        EmissaoMunicipalResponse emitida = respostaEmissao.getBody();
 
         assertEquals("AUTORIZADA", emitida.status());
         assertThat(emitida.numeroNfse()).isNotBlank();
