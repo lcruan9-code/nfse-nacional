@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.time.OffsetDateTime;
@@ -32,8 +33,18 @@ class EmissaoMunicipalTest extends AbstractPostgresIT {
     @Autowired ApiKeyRepository keyRepo;
     @Autowired ApiKeyService keySvc;
     @Autowired EmpresaRepository empresaRepo;
+    @Autowired JdbcTemplate jdbc;
 
     private RestClient client() { return RestClient.create("http://localhost:" + port); }
+
+    /** Semeadura idempotente de um fixture fictício (provedores_municipais não é truncada). */
+    private void semearProvedor(String ibge, String tipo, String provedor, String versao) {
+        jdbc.update("delete from provedores_municipais where codigo_ibge = ?", ibge);
+        jdbc.update("insert into provedores_municipais"
+                + " (codigo_ibge, nome, uf, tipo, provedor, versao_abrasf, estilo_envelope, algoritmo)"
+                + " values (?, 'Fixture', 'PA', ?, ?, ?, 'NFSE_DADOS_MSG', 'SHA1')",
+                ibge, tipo, provedor, versao);
+    }
 
     private record Setup(String chave, UUID empresaId) {}
 
@@ -64,10 +75,11 @@ class EmissaoMunicipalTest extends AbstractPostgresIT {
     @Test
     void emiteMunicipalAutorizadaEConsulta() {
         Setup s = setup("Cli Mun", "sk_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Ambiente.SANDBOX);
+        semearProvedor("9999902", "ABRASF_2X", "ProvTeste", "2.04");
 
         var respostaEmissao = client().post().uri("/v1/nfse-municipal")
                 .header("X-Api-Key", s.chave()).contentType(MediaType.APPLICATION_JSON)
-                .body(json(s.empresaId(), "4204608", "AUTORIZADA"))
+                .body(json(s.empresaId(), "9999902", "AUTORIZADA"))
                 .retrieve().toEntity(EmissaoMunicipalResponse.class);
         assertEquals(202, respostaEmissao.getStatusCode().value());
         EmissaoMunicipalResponse emitida = respostaEmissao.getBody();
@@ -85,21 +97,23 @@ class EmissaoMunicipalTest extends AbstractPostgresIT {
     @Test
     void ibgeAdnRetorna409() {
         Setup s = setup("Cli ADN", "sk_test_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Ambiente.SANDBOX);
-        assertEquals(409, postStatus(s, "1501808", "AUTORIZADA").value());
+        semearProvedor("9999901", "ADN", "PadraoNacional", null);
+        assertEquals(409, postStatus(s, "9999901", "AUTORIZADA").value());
     }
 
     @Test
     void ibgeDesconhecidoRetorna422() {
         Setup s = setup("Cli Desc", "sk_test_cccccccccccccccccccccccccccccccc", Ambiente.SANDBOX);
-        assertEquals(422, postStatus(s, "3550308", "AUTORIZADA").value());
+        assertEquals(422, postStatus(s, "9999900", "AUTORIZADA").value());
     }
 
     @Test
     void crossTenantConsultaRetorna404() {
         Setup a = setup("Conta A", "sk_test_dddddddddddddddddddddddddddddddd", Ambiente.SANDBOX);
         Setup b = setup("Conta B", "sk_test_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", Ambiente.SANDBOX);
+        semearProvedor("9999902", "ABRASF_2X", "ProvTeste", "2.04");
         UUID idA = client().post().uri("/v1/nfse-municipal").header("X-Api-Key", a.chave())
-                .contentType(MediaType.APPLICATION_JSON).body(json(a.empresaId(), "4204608", "AUTORIZADA"))
+                .contentType(MediaType.APPLICATION_JSON).body(json(a.empresaId(), "9999902", "AUTORIZADA"))
                 .retrieve().toEntity(EmissaoMunicipalResponse.class).getBody().id();
 
         HttpStatusCode st = client().get().uri("/v1/nfse-municipal/" + idA).header("X-Api-Key", b.chave())
@@ -110,6 +124,6 @@ class EmissaoMunicipalTest extends AbstractPostgresIT {
     @Test
     void chaveProducaoRetorna501() {
         Setup s = setup("Cli Prod", "sk_live_ffffffffffffffffffffffffffffffff", Ambiente.PRODUCAO);
-        assertEquals(501, postStatus(s, "4204608", "AUTORIZADA").value());
+        assertEquals(501, postStatus(s, "9999902", "AUTORIZADA").value());
     }
 }

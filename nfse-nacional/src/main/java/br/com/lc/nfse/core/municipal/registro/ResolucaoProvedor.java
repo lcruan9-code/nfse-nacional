@@ -9,5 +9,5 @@ public sealed interface ResolucaoProvedor
 
     record ProvedorResolvido(ProvedorConfig config) implements ResolucaoProvedor {}
     record CidadeAdn() implements ResolucaoProvedor {}
-    record CidadeNaoSuportada(String ibge) implements ResolucaoProvedor {}
+    record CidadeNaoSuportada(String ibge, String provedor) implements ResolucaoProvedor {}
 }

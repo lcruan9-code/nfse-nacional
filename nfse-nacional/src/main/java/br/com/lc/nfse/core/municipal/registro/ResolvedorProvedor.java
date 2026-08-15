@@ -19,18 +19,21 @@ public class ResolvedorProvedor {
     public ResolucaoProvedor resolver(String ibge) {
         return repo.findById(ibge)
                 .map(this::mapear)
-                .orElseGet(() -> new ResolucaoProvedor.CidadeNaoSuportada(ibge));
+                .orElseGet(() -> new ResolucaoProvedor.CidadeNaoSuportada(ibge, null));
     }
 
     private ResolucaoProvedor mapear(ProvedorMunicipalRegistro reg) {
-        TipoProvedor tipo = TipoProvedor.valueOf(reg.getTipo());
-        if (tipo == TipoProvedor.ADN) {
+        String tipo = reg.getTipo();
+        if ("ADN".equals(tipo)) {
             return new ResolucaoProvedor.CidadeAdn();
         }
-        ProvedorConfig cfg = new ProvedorConfig(tipo, reg.getVersaoAbrasf(),
-                reg.getUrlHomolog(), reg.getUrlProd(),
-                EstiloEnvelope.valueOf(reg.getEstiloEnvelope()),
-                AlgoritmoAssinatura.valueOf(reg.getAlgoritmo()));
-        return new ResolucaoProvedor.ProvedorResolvido(cfg);
+        if ("ABRASF_2X".equals(tipo)) {
+            ProvedorConfig cfg = new ProvedorConfig(TipoProvedor.ABRASF_2X, reg.getVersaoAbrasf(),
+                    reg.getUrlHomolog(), reg.getUrlProd(),
+                    EstiloEnvelope.valueOf(reg.getEstiloEnvelope()),
+                    AlgoritmoAssinatura.valueOf(reg.getAlgoritmo()));
+            return new ResolucaoProvedor.ProvedorResolvido(cfg);
+        }
+        return new ResolucaoProvedor.CidadeNaoSuportada(reg.getCodigoIbge(), reg.getProvedor());
     }
 }

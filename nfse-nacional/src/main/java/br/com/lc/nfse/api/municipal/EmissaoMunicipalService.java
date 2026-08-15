@@ -100,7 +100,7 @@ public class EmissaoMunicipalService {
             throw new ConflitoException("Cidade é Padrão Nacional (ADN); use POST /v1/nfse");
         }
         ResolucaoProvedor.CidadeNaoSuportada ns = (ResolucaoProvedor.CidadeNaoSuportada) resolucao;
-        log.info("IBGE não suportado solicitado: {}", ns.ibge()); // sinal de demanda
+        log.info("IBGE não suportado solicitado: {} (provedor conhecido: {})", ns.ibge(), ns.provedor()); // sinal de demanda
         throw new IllegalArgumentException("Município ainda não suportado: " + ns.ibge());
     }
 

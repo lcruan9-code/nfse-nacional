@@ -31,6 +31,8 @@ public class ProvedorMunicipalRegistro {
 
     private String algoritmo;
 
+    private String provedor;
+
     protected ProvedorMunicipalRegistro() {}
 
     public String getCodigoIbge() { return codigoIbge; }
@@ -42,4 +44,5 @@ public class ProvedorMunicipalRegistro {
     public String getUrlProd() { return urlProd; }
     public String getEstiloEnvelope() { return estiloEnvelope; }
     public String getAlgoritmo() { return algoritmo; }
+    public String getProvedor() { return provedor; }
 }
