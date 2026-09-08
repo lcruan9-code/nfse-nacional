@@ -1,43 +1,80 @@
-# nfse-nacional — Núcleo de Emissão NFS-e Padrão Nacional (Protótipo #1)
+# nfse-nacional
 
-API/serviço que monta uma **DPS** (Declaração de Prestação de Serviços), valida contra o **XSD oficial
-v1.01** da NFS-e Nacional, **assina** (XMLDSig) e **empacota** (gzip+base64) — o pacote pronto para
-transmitir ao Ambiente de Dados Nacional (ADN) quando houver certificado A1.
+Serviço de emissão de **NFS-e** em Java, com dois caminhos de emissão sob um mesmo contrato de API:
+o **Padrão Nacional** (DPS → XSD → assinatura → pacote) e o **padrão municipal ABRASF 2.04**, com
+roteamento automático por código IBGE do município.
 
-> **Escopo do protótipo:** só o núcleo offline (montar → validar → assinar → empacotar). **Não**
-> transmite ao governo (a transmissão exige mTLS com A1 ICP-Brasil, ainda indisponível). Assina com um
-> certificado de teste autoassinado (não-ICP).
+> ### Status: MVP em desenvolvimento
+>
+> Este repositório é público como **portfólio de código**, não como produto pronto. O que já funciona
+> e o que ainda não funciona está descrito abaixo, sem maquiagem:
+>
+> - **Não transmite ao governo.** A transmissão real ao Ambiente de Dados Nacional (ADN) exige mTLS
+>   com certificado A1 ICP-Brasil, que o projeto ainda não tem. O ambiente de produção responde
+>   `ProducaoIndisponivelException` de propósito.
+> - **Assina com certificado autoassinado** (`CN=NFSE SANDBOX NAO-ICP`), versionado aqui só para os
+>   testes rodarem. Não tem validade fiscal e não representa nenhuma empresa.
+> - O caminho municipal usa um **simulador** no lugar do webservice da prefeitura.
 
-## Requisitos
+## Stack
 
-- **JDK 17** (o projeto usa `C:\Program Files\Java\jdk-17`). **Não** usa o Java 8 padrão do sistema.
-- Maven **não** precisa estar instalado — usa o **Maven Wrapper** (`mvnw.cmd`), que baixa o Maven na 1ª execução.
+Java 17 · Spring Boot 4.1 (Web MVC, Data JPA, Security, Validation) · PostgreSQL · Flyway ·
+Hibernate · JUnit 5 · Testcontainers · Maven · Docker
 
-## Build e testes
+## O que está implementado
 
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-.\mvnw.cmd test
+**Núcleo fiscal (`core`, sem Spring)**
+
+- **Padrão Nacional:** `DpsBuilder` monta a DPS → `DpsValidator` valida contra o XSD oficial v1.01 →
+  `DpsSigner` assina em XMLDSig enveloped (RSA-SHA256, âncora `infDPS`/`Id`) → `DpsPackager`
+  empacota em gzip + base64. Inclui os campos de **IBS/CBS** da reforma tributária.
+- **Padrão municipal ABRASF 2.04:** construtor de XML, assinador, envelope SOAP, validador e parser
+  de retorno, atrás de uma interface `ProvedorMunicipal` — trocar de provedor não toca o resto.
+- **Roteamento por município:** `ResolvedorProvedor` descobre o provedor a partir do código IBGE,
+  sobre um seed de ~3.079 municípios (mapa do ACBr). Município sem provedor conhecido devolve
+  `NAO_SUPORTADO` em vez de falhar silenciosamente.
+
+**API (`api`)**
+
+- Multiempresa: `contas` → `empresas` → `api_keys`, com ambientes sandbox e produção separados.
+- Autenticação por `X-Api-Key` via filtro do Spring Security. **A chave nunca é armazenada** — o
+  banco guarda só o hash, com unicidade garantida no schema.
+- Endpoints: `POST /v1/nfse`, `GET /v1/nfse/{id}`, `POST /v1/nfse-municipal`,
+  `GET /v1/nfse-municipal/{id}`, `POST /admin/contas`, `/v1/empresas`, `/v1/whoami`, `/health`,
+  `POST /dps/preview`.
+- Erro sempre no mesmo envelope (`{ "erro": { "codigo", "mensagem" } }`), inclusive no 401.
+- 8 migrations Flyway; `ddl-auto: validate` — o schema é do Flyway, o Hibernate só confere.
+
+**Testes** — 26 classes, 61 testes. Cobrem o round-trip do empacotamento, carga de certificado,
+carga e validação de schema, geração de DPS válida no XSD, assinar→verificar, o pipeline ABRASF
+completo, autenticação por API key e os repositórios contra **PostgreSQL real via Testcontainers**.
+
+## Rodar
+
+Precisa de **JDK 17** (o projeto não compila no Java 8) e Docker para os testes de integração.
+Maven não precisa estar instalado — o wrapper baixa.
+
+```bash
+./mvnw test
 ```
 
-Suíte cobre: round-trip do empacotamento, carga do certificado, carga/validação do schema, geração da
-DPS válida no XSD, assinatura (assinar→verificar) e o endpoint completo.
-
-## Rodar a API
-
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-# opcional: assinar de verdade (senão devolve a DPS validada, não assinada)
-$env:NFSE_CERTIFICADO_CAMINHO = "src/test/resources/certs/teste.p12"
-$env:NFSE_CERTIFICADO_SENHA = "changeit"
-.\mvnw.cmd spring-boot:run
+```bash
+./mvnw spring-boot:run
 ```
 
-### `POST /dps/preview`
+Configuração por variável de ambiente (defaults de desenvolvimento em `application.yml`):
 
-Requisição (JSON):
+| Variável | Para quê |
+|---|---|
+| `NFSE_DB_PASSWORD` | senha do PostgreSQL |
+| `NFSE_ADMIN_KEY` | chave do endpoint administrativo |
+| `NFSE_CERT_CAMINHO` | caminho do `.p12` usado para assinar |
+| `NFSE_CERT_SENHA` | senha do `.p12` |
+
+Sobe também em container: o `Dockerfile` é multi-stage e limita o heap ao container
+(`MaxRAMPercentage=70`), para caber em instância pequena.
+
+### Exemplo — `POST /dps/preview`
 
 ```json
 {
@@ -58,27 +95,21 @@ Requisição (JSON):
 }
 ```
 
-Resposta (JSON): `{ valido, assinado, xml, pacoteGzipB64, mensagem }`.
+Resposta: `{ valido, assinado, xml, pacoteGzipB64, mensagem }`. Devolve **422** quando a DPS não
+valida contra o XSD, com mensagem legível, e **200 com `assinado=false`** quando não há certificado
+configurado.
 
-- `422` quando a DPS não valida contra o XSD (com mensagem legível).
-- `200` com `assinado=false` quando não há certificado configurado.
+## Duas decisões técnicas que valem a leitura
 
-## Arquitetura
+**Âncoras `^$` no XSD oficial.** Os `<xs:pattern>` dos schemas da NFS-e usam âncoras no estilo .NET.
+O Xerces do Java as rejeita e o schema simplesmente não compila. O `SanitizadorAncoras` remove essas
+âncoras antes de compilar — sem isso, nenhum validador Java lê os XSDs oficiais.
 
-- **`core`** — coração fiscal, sem Spring: `DpsBuilder` → `DpsValidator` → `DpsSigner` → `DpsPackager`
-  (+ `CertificadoLoader`). Testável por JUnit puro.
-- **`web`** — casca fina: `DpsPreviewController` orquestra o pipeline; `CertificadoProvider` carrega o A1.
-
-## Notas técnicas
-
-- **Schema v1.01** (`src/main/resources/schemas/`), publicado 2026-02-09. Decisões oficiais em
-  [`schemas/DECISOES.md`](src/main/resources/schemas/DECISOES.md).
-- **Saneamento de âncoras `^$`:** os `<xs:pattern>` do XSD usam âncoras estilo .NET que o Xerces do
-  Java rejeita; o `DpsValidator` remove essas âncoras antes de compilar o schema.
-- **Assinatura:** XMLDSig enveloped, RSA-SHA256, âncora `infDPS`/`Id`. O algoritmo exato exigido pelo
-  ADN deve ser confirmado no manual antes da transmissão real.
+**Núcleo fiscal sem Spring.** Todo o `core` é Java puro, testável com JUnit sem subir contexto. O
+Spring fica na casca (`api`, `web`). Isso mantém a suíte do núcleo em milissegundos e deixa a regra
+fiscal independente do framework.
 
 ## Próximos passos
 
-Transmissão real ao ADN (mTLS + A1); depois a camada de API comercial (#2): contrato JSON público,
-autenticação, persistência, assíncrono e webhooks.
+Transmissão real ao ADN (mTLS + A1 ICP-Brasil), emissão assíncrona com webhooks, e substituir o
+simulador municipal pelos webservices reais das prefeituras.
